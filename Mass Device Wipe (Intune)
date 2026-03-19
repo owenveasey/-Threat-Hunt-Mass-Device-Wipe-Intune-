@@ -1,0 +1,15 @@
+// T1561.002 - Detecting Mass Device Wipes (Stryker Scenario)
+IntuneAuditLogs
+| where TimeGenerated > ago(24h)
+// 1. Filter for "Death Commands" (Wipes and Resets)
+| where OperationName has_any ("Wipe", "Retire", "Delete", "Factory Reset")
+// 2. Extract targeted device names from JSON properties
+| extend Props = parse_json(Properties)
+| extend DeviceNames = Props.TargetDisplayNames
+// 3. Group by Admin (Actor) in 10-minute bursts to identify automated scripts
+| summarize ActionCount = count(), TargetedDevices = make_set(DeviceNames) by Actor = tostring(Identity), bin(TimeGenerated, 10m)
+// 4. Threshold: Only show clusters of 5 or more actions in a 10-minute window
+| where ActionCount >= 5
+// 5. Final output for SOC triage
+| project TimeGenerated, Actor, ActionCount, TargetedDevices
+| sort by ActionCount desc
