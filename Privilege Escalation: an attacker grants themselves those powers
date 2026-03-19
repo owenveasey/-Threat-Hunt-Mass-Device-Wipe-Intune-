@@ -1,0 +1,11 @@
+// T1098 - Detecting "God-Mode" Role Assignments
+AuditLogs
+| where OperationName == "Add member to role"
+// Extract Role and Target User
+| extend Role = tostring(TargetResources[0].displayName)
+| extend User = tostring(TargetResources[1].userPrincipalName)
+// Filter for high-privilege/destructive roles
+| where Role has_any ("Intune Administrator", "Global Administrator", "Privileged Role Administrator")
+// Track who performed the promotion
+| project TimeGenerated, Role, User, Admin = Identity
+| sort by TimeGenerated desc
